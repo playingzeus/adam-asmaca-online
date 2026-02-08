@@ -46,6 +46,7 @@ const ovMini = el("ovMini");
 // cat
 const catBtn = el("catEgg");
 let catClicks = 0;
+let catAnimTimer = null;
 
 // parts
 const parts = [
@@ -194,7 +195,6 @@ function updateUI(s) {
   renderParts(s.wrong || 0);
   wrongEl.textContent = String(s.wrong ?? 0);
 
-  // ✅ burada zaten guessed listesi gösteriliyor; catHint ile eklenen harf de buraya düşecek
   guessedEl.textContent = s.guessed && s.guessed.length ? s.guessed.join(", ") : "—";
 
   if (amHost && s.phase === "waiting" && (!s.revealed || s.revealed.length === 0)) {
@@ -203,7 +203,6 @@ function updateUI(s) {
     renderWord(s.revealed);
   }
 
-  // ✅ Son tahmin satırı sadece gerçek guess ile değişir (catHint lastGuess’i değiştirmiyor)
   if (s.lastGuess) {
     const who = (s.lastGuess.by === s.guestId) ? (s.names?.guest || "Tahmin eden") : "Biri";
     const L = s.lastGuess.letter.toLocaleUpperCase("tr-TR");
@@ -306,9 +305,23 @@ revealSecretBtn.addEventListener("click", () => {
   socket.emit("requestSecret", { roomId: currentRoom });
 });
 
-// 🐱 11-click: 1 harf aç (sessiz)
+// 🐱 fidget: her tıkta 360° dön + büyü, 11 tıkta hint
 catBtn.addEventListener("click", () => {
   if (!currentRoom) return;
+
+  // anim
+  catBtn.classList.remove("spin");
+  // reflow hack (anim tekrar çalışsın)
+  void catBtn.offsetWidth;
+  catBtn.classList.add("spin");
+
+  if (catAnimTimer) clearTimeout(catAnimTimer);
+  catAnimTimer = setTimeout(() => {
+    catBtn.classList.remove("spin");
+    catAnimTimer = null;
+  }, 240);
+
+  // counter
   catClicks += 1;
   if (catClicks >= 11) {
     catClicks = 0;
