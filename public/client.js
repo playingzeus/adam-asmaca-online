@@ -18,6 +18,7 @@ const lastEl = el("last");
 const setBox = el("setBox");
 const secretInput = el("secretInput");
 const setSecretBtn = el("setSecretBtn");
+const revealSecretBtn = el("revealSecretBtn");
 
 const keyboardEl = el("keyboard");
 
@@ -58,6 +59,8 @@ let myId = null;
 let currentRoom = null;
 let state = null;
 let myName = "";
+
+let tempRevealTimer = null;
 
 function getRoomFromUrl() {
   const u = new URL(window.location.href);
@@ -164,7 +167,7 @@ function updateUI(s) {
   const amHost = s.hostId === myId;
   const amGuest = s.guestId === myId;
 
-  // names line (roles)
+  // roles line
   if (s.names?.host || s.names?.guest) {
     const host = s.names.host ? `${s.names.host} (Kelime)` : "—";
     const guest = s.names.guest ? `${s.names.guest} (Tahmin)` : "—";
@@ -182,8 +185,16 @@ function updateUI(s) {
   else if (s.phase === "waiting") setStatus("Kelime bekleniyor…");
   else if (s.phase === "playing") setStatus("Oyun başladı.");
 
+  // host input
   setBox.style.display = amHost ? "block" : "none";
   setSecretBtn.disabled = !amHost || !secretInput.value.trim();
+
+  // ✅ show "Kelimeyi Göster" only for host while playing
+  if (amHost && s.phase === "playing") {
+    revealSecretBtn.style.display = "inline-block";
+  } else {
+    revealSecretBtn.style.display = "none";
+  }
 
   renderParts(s.wrong || 0);
   wrongEl.textContent = String(s.wrong ?? 0);
@@ -209,7 +220,6 @@ function updateUI(s) {
 }
 
 // --- Socket events ---
-
 socket.on("connect", () => {
   myId = socket.id;
 
@@ -246,12 +256,10 @@ socket.on("state", (s) => {
 });
 
 socket.on("roundOver", (info) => {
-  // Round result
   const title = `${info.winnerName} kazandı ✅`;
   const sub = `${info.loserName} kaybetti ❌`;
-  let mini = "3 saniye sonra roller değişecek…";
 
-  // Set / Match messages
+  let mini = "3 saniye sonra roller değişecek…";
   if (info.setEnded && !info.matchEnded) {
     mini = `Set ${Math.max(1, (info.scoring.currentSet - 1))} ${info.setWinnerName}’e gitti. Yeni sete geçiliyor…`;
   }
@@ -260,13 +268,29 @@ socket.on("roundOver", (info) => {
   }
 
   showOverlay(title, sub, info.secret, mini);
-
-  // Overlay 3.1s sonra kapansın (server 3s sonra state gönderiyor)
   setTimeout(() => hideOverlay(), 3100);
 });
 
-// --- UI events ---
+// ✅ Host-only secret reveal response
+socket.on("secretReveal", ({ secret }) => {
+  if (!state) return;
 
+  // show secret briefly
+  const prev = wordEl.textContent;
+
+  // clear previous timer
+  if (tempRevealTimer) clearTimeout(tempRevealTimer);
+
+  wordEl.textContent = secret;
+
+  tempRevealTimer = setTimeout(() => {
+    // restore masked word
+    renderWord(state.revealed);
+    tempRevealTimer = null;
+  }, 2000);
+});
+
+// --- UI events ---
 newRoomBtn.addEventListener("click", () => {
   if (!myName) {
     showNameModal();
@@ -290,6 +314,12 @@ setSecretBtn.addEventListener("click", () => {
   socket.emit("setSecret", { roomId: currentRoom, secret: secretInput.value });
   secretInput.value = "";
   setSecretBtn.disabled = true;
+});
+
+// ✅ reveal button (host only)
+revealSecretBtn.addEventListener("click", () => {
+  if (!currentRoom) return;
+  socket.emit("requestSecret", { roomId: currentRoom });
 });
 
 // name modal
