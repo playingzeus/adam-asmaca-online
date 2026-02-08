@@ -97,4 +97,119 @@ input{
 .last{ color:#e8ecff; }
 
 .setbox{
-  margin-top
+  margin-top:14px;
+  padding:12px;
+  border-radius:16px;
+  border:1px dashed rgba(255,255,255,.18);
+  background:rgba(0,0,0,.14);
+}
+.setTitle{ font-weight:750; margin-bottom:10px; }
+.setRow{ display:flex; gap:10px; align-items:center; }
+.setRow input{ flex:1; }
+
+.ghostBtn{
+  margin-top:10px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.18);
+  color:#e8ecff;
+  padding:8px 12px;
+  border-radius:10px;
+  cursor:pointer;
+  font-size:13px;
+}
+
+.kbd{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap:8px;
+}
+.key{
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.10);
+  color:#e8ecff;
+  padding:12px 0;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:800;
+}
+.key:disabled{ opacity:.45; cursor:not-allowed; }
+.key.hit{ outline:2px solid rgba(126,231,135,.45); }
+.key.miss{ outline:2px solid rgba(255,127,127,.45); }
+
+/* Scoreboard */
+.score{
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.14);
+  padding:12px;
+  height: fit-content;
+  position: sticky;
+  top: 12px;
+}
+.scoreTitle{ font-weight:900; font-size:16px; }
+.scoreMini{ color:var(--muted); margin-top:6px; font-size:13px; }
+
+.playerCard{
+  margin-top:12px;
+  padding:12px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+}
+.pTop{ display:flex; justify-content:space-between; gap:10px; align-items:center; }
+.pName{ font-weight:900; }
+.stars{ color:rgba(255,255,255,.85); font-weight:800; }
+.pBottom{ margin-top:10px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); }
+.pPoints{ font-size:22px; font-weight:950; color:#e8ecff; }
+.scoreHint{ margin-top:12px; color:var(--muted); font-size:13px; line-height:1.35; }
+
+/* Modal / Overlay */
+.modal{
+  position:fixed; inset:0; z-index:50;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.55);
+  padding:16px;
+}
+.modalCard{
+  width:min(520px, 100%);
+  background:rgba(15,20,40,.95);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:18px;
+  padding:16px;
+}
+.modalTitle{ font-size:18px; font-weight:850; margin-bottom:10px; }
+.modalRow{ display:flex; gap:10px; }
+.modalRow input{ flex:1; }
+
+.overlay{
+  position:fixed; inset:0; z-index:60;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.58);
+  padding:16px;
+}
+.overlayCard{
+  width:min(560px, 100%);
+  background:rgba(15,20,40,.96);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:18px;
+  padding:18px;
+  text-align:center;
+}
+.overlayTitle{ font-size:22px; font-weight:900; }
+.overlaySub{ margin-top:8px; color:var(--muted); font-size:15px; }
+.overlaySecret{ margin-top:12px; font-size:18px; font-weight:850; }
+.overlayMini{ margin-top:10px; color:var(--muted); font-size:13px; }
+
+/* shared hidden (modal/overlay) */
+.hidden{ display:none; }
+
+@media (max-width: 900px){
+  .layout{ grid-template-columns:1fr; }
+  .score{ position: static; }
+}
+@media (max-width: 760px){
+  .board{ grid-template-columns:1fr; }
+  .word{ font-size:28px; letter-spacing:6px; }
+  .kbd{ grid-template-columns: repeat(7, minmax(0, 1fr)); }
+}
