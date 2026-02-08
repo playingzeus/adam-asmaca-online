@@ -59,12 +59,9 @@ function ensureRoom(roomId) {
       // scoring
       pointsToWinSet: 5,
       setsToWinMatch: 2,
-      points: { p1: 0, p2: 0 }, // within current set (0..5)
-      sets: { p1: 0, p2: 0 },   // stars / sets won (0..2)
+      points: { p1: 0, p2: 0 }, // within current set
+      sets: { p1: 0, p2: 0 },   // sets won
       currentSet: 1,            // 1..3
-
-      // round end overlay info (last)
-      lastRoundInfo: null,
 
       // timers
       nextTimer: null,
@@ -106,7 +103,7 @@ function publicState(roomId, r) {
       p2: r.p2Id ? getName(r, r.p2Id) : "",
     },
 
-    // hangman
+    // hangman (NEVER send secretRaw here)
     wrong: r.wrong,
     maxWrong: r.maxWrong,
     guessed: Array.from(r.guessed),
@@ -168,198 +165,4 @@ io.on("connection", (socket) => {
     r.names.set(socket.id, safeName);
 
     // assign player slots
-    if (!r.p1Id) r.p1Id = socket.id;
-    else if (!r.p2Id && socket.id !== r.p1Id) r.p2Id = socket.id;
-
-    // assign roles
-    if (!r.hostId) r.hostId = socket.id;
-    else if (!r.guestId && socket.id !== r.hostId) r.guestId = socket.id;
-    else {
-      socket.emit("roomFull", { roomId });
-      return;
-    }
-
-    socket.join(roomId);
-
-    // phase
-    if (r.hostId && r.guestId && r.secretNorm) r.phase = "playing";
-    else r.phase = "waiting";
-
-    io.to(roomId).emit("state", publicState(roomId, r));
-  });
-
-  socket.on("setSecret", ({ roomId, secret }) => {
-    const r = rooms.get(roomId);
-    if (!r) return;
-    if (socket.id !== r.hostId) return;
-    if (!secret || !secret.trim()) return;
-
-    clearNextTimer(r);
-
-    r.secretRaw = secret.trim();
-    r.secretNorm = normalizeTR(r.secretRaw);
-    r.guessed = new Set();
-    r.wrong = 0;
-    r.lastGuess = null;
-    r.lastRoundInfo = null;
-
-    r.phase = (r.hostId && r.guestId) ? "playing" : "waiting";
-
-    io.to(roomId).emit("state", publicState(roomId, r));
-  });
-
-  socket.on("guess", ({ roomId, letter }) => {
-    const r = rooms.get(roomId);
-    if (!r) return;
-    if (r.phase !== "playing") return;
-    if (socket.id !== r.guestId) return;
-
-    let l = String(letter || "").trim().toLocaleLowerCase("tr-TR");
-    if (l.length !== 1) return;
-    if (!/[a-zçğıöşü]/.test(l)) return;
-    if (r.guessed.has(l)) return;
-
-    r.guessed.add(l);
-    const hit = r.secretNorm.includes(l);
-    if (!hit) r.wrong += 1;
-    r.lastGuess = { by: socket.id, letter: l, hit };
-
-    const revealed = maskSecret(r.secretRaw, r.guessed);
-    const guesserWon = !revealed.includes("_");
-    const guesserLost = r.wrong >= r.maxWrong;
-
-    if (!(guesserWon || guesserLost)) {
-      io.to(roomId).emit("state", publicState(roomId, r));
-      return;
-    }
-
-    // round winner/loser by ids
-    const winnerId = guesserWon ? r.guestId : r.hostId;
-    const loserId = guesserWon ? r.hostId : r.guestId;
-
-    // update points in current set
-    const winnerSlot = playerSlot(r, winnerId);
-    const loserSlot = playerSlot(r, loserId);
-
-    if (winnerSlot) r.points[winnerSlot] += 1;
-
-    // check set win
-    let setWinnerSlot = null;
-    if (r.points.p1 >= r.pointsToWinSet) setWinnerSlot = "p1";
-    if (r.points.p2 >= r.pointsToWinSet) setWinnerSlot = "p2";
-
-    let matchWinnerSlot = null;
-    let setEnded = false;
-    let matchEnded = false;
-
-    if (setWinnerSlot) {
-      setEnded = true;
-      r.sets[setWinnerSlot] += 1;
-
-      // reset points for next set
-      r.points = { p1: 0, p2: 0 };
-      r.currentSet = Math.min(3, r.currentSet + 1);
-
-      // match win?
-      if (r.sets[setWinnerSlot] >= r.setsToWinMatch) {
-        matchEnded = true;
-        matchWinnerSlot = setWinnerSlot;
-      }
-    }
-
-    const info = {
-      // round result
-      winnerId,
-      loserId,
-      winnerName: getName(r, winnerId),
-      loserName: getName(r, loserId),
-      secret: r.secretRaw,
-      guesserWon,
-
-      // scoring snapshot AFTER update
-      scoring: {
-        pointsToWinSet: r.pointsToWinSet,
-        setsToWinMatch: r.setsToWinMatch,
-        points: r.points,
-        sets: r.sets,
-        currentSet: r.currentSet,
-      },
-
-      // events
-      setEnded,
-      matchEnded,
-
-      setWinnerName: setEnded ? getName(r, setWinnerSlot === "p1" ? r.p1Id : r.p2Id) : null,
-      matchWinnerName: matchEnded ? getName(r, matchWinnerSlot === "p1" ? r.p1Id : r.p2Id) : null,
-    };
-
-    r.lastRoundInfo = info;
-
-    // send overlay info
-    io.to(roomId).emit("roundOver", info);
-
-    // during overlay: lock by switching to waiting immediately
-    // swap roles for next round
-    clearNextTimer(r);
-
-    // If match ended, reset match after overlay; if just set ended, keep sets and continue next set
-    // Always: swap roles + reset round and wait for next word
-    r.phase = "waiting";
-
-    // swap roles if both present
-    if (r.hostId && r.guestId) {
-      const oldHost = r.hostId;
-      r.hostId = r.guestId;
-      r.guestId = oldHost;
-    }
-
-    // reset round (word cleared)
-    resetRound(r);
-
-    // overlay duration: 3 seconds for round, + 2 seconds extra if set/match message? keep simple: 3s always
-    const overlayMs = 3000;
-
-    r.nextTimer = setTimeout(() => {
-      const rr = rooms.get(roomId);
-      if (!rr) return;
-
-      // if match ended -> reset everything (sets+points+set counter)
-      if (info.matchEnded) {
-        resetMatch(rr);
-      }
-
-      rr.nextTimer = null;
-      io.to(roomId).emit("state", publicState(roomId, rr));
-    }, overlayMs);
-
-    // push state now (so UI disables keyboard etc)
-    io.to(roomId).emit("state", publicState(roomId, r));
-  });
-
-  socket.on("disconnect", () => {
-    for (const [roomId, r] of rooms.entries()) {
-      let changed = false;
-
-      if (r.hostId === socket.id) { r.hostId = null; changed = true; }
-      if (r.guestId === socket.id) { r.guestId = null; changed = true; }
-
-      if (r.p1Id === socket.id) { r.p1Id = null; changed = true; }
-      if (r.p2Id === socket.id) { r.p2Id = null; changed = true; }
-
-      if (r.names.has(socket.id)) { r.names.delete(socket.id); changed = true; }
-
-      if (changed) {
-        clearNextTimer(r);
-        resetRound(r);
-        // skorları tamamen sıfırlayalım (oyuncu gitti)
-        resetMatch(r);
-
-        io.to(roomId).emit("state", publicState(roomId, r));
-        cleanupRoomIfEmpty(roomId);
-      }
-    }
-  });
-});
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on :${PORT}`));
+    if (!r.p1Id) r.p1I
