@@ -29,7 +29,7 @@ input{
   background:rgba(255,255,255,.06); color:#e8ecff; outline:none;
 }
 
-.wrap{ max-width:900px; margin:0 auto; padding:16px; }
+.wrap{ max-width:980px; margin:0 auto; padding:16px; }
 .card{
   background:var(--card);
   border:1px solid var(--border);
@@ -41,17 +41,23 @@ input{
 .status{ padding:10px 12px; background:rgba(0,0,0,.25); border-radius:14px; }
 .pill{ padding:8px 10px; border-radius:999px; background:rgba(255,255,255,.08); color:var(--muted); }
 
+.layout{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns: 1fr 280px;
+  gap:14px;
+}
+
 .names{
-  margin-top:10px;
   padding:10px 12px;
   border-radius:14px;
   background:rgba(0,0,0,.18);
   border:1px solid rgba(255,255,255,.10);
   color:var(--muted);
+  margin-bottom:12px;
 }
 
 .board{
-  margin-top:12px;
   display:grid;
   grid-template-columns: 260px 1fr;
   gap:14px;
@@ -66,7 +72,7 @@ input{
   padding:10px;
 }
 .line{ stroke: rgba(255,255,255,.82); stroke-width:4; stroke-linecap:round; }
-.hidden{ opacity:0; }
+
 .word{
   font-size:34px;
   letter-spacing:8px;
@@ -77,6 +83,7 @@ input{
   min-height:64px;
   display:flex; align-items:center; flex-wrap:wrap; gap:8px;
 }
+
 .meta{
   grid-column: 1 / -1;
   display:flex; gap:14px; flex-wrap:wrap;
@@ -115,11 +122,35 @@ input{
 .key.hit{ outline:2px solid rgba(126,231,135,.45); }
 .key.miss{ outline:2px solid rgba(255,127,127,.45); }
 
-@media (max-width: 760px){
-  .board{ grid-template-columns:1fr; }
-  .word{ font-size:28px; letter-spacing:6px; }
-  .kbd{ grid-template-columns: repeat(7, minmax(0, 1fr)); }
+/* parts visibility */
+.hidden{ display:none; }
+
+/* Scoreboard */
+.score{
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(0,0,0,.14);
+  padding:12px;
+  height: fit-content;
+  position: sticky;
+  top: 12px;
 }
+.scoreTitle{ font-weight:900; font-size:16px; }
+.scoreMini{ color:var(--muted); margin-top:6px; font-size:13px; }
+
+.playerCard{
+  margin-top:12px;
+  padding:12px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.06);
+}
+.pTop{ display:flex; justify-content:space-between; gap:10px; align-items:center; }
+.pName{ font-weight:900; }
+.stars{ color:rgba(255,255,255,.85); font-weight:800; }
+.pBottom{ margin-top:10px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); }
+.pPoints{ font-size:22px; font-weight:950; color:#e8ecff; }
+.scoreHint{ margin-top:12px; color:var(--muted); font-size:13px; line-height:1.35; }
 
 /* Modal / Overlay */
 .modal{
@@ -135,11 +166,9 @@ input{
   border-radius:18px;
   padding:16px;
 }
-.modalTitle{ font-size:18px; font-weight:850; margin-bottom:6px; }
-.modalDesc{ color:var(--muted); margin-bottom:12px; }
+.modalTitle{ font-size:18px; font-weight:850; margin-bottom:10px; }
 .modalRow{ display:flex; gap:10px; }
 .modalRow input{ flex:1; }
-.modalMini{ margin-top:10px; color:var(--muted); font-size:13px; }
 
 .overlay{
   position:fixed; inset:0; z-index:60;
@@ -160,3 +189,13 @@ input{
 .overlaySecret{ margin-top:12px; font-size:18px; font-weight:850; }
 .overlayMini{ margin-top:10px; color:var(--muted); font-size:13px; }
 .hidden{ display:none; }
+
+@media (max-width: 900px){
+  .layout{ grid-template-columns:1fr; }
+  .score{ position: static; }
+}
+@media (max-width: 760px){
+  .board{ grid-template-columns:1fr; }
+  .word{ font-size:28px; letter-spacing:6px; }
+  .kbd{ grid-template-columns: repeat(7, minmax(0, 1fr)); }
+}
