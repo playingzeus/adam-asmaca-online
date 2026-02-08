@@ -73,8 +73,7 @@ input{
 }
 .line{ stroke: rgba(255,255,255,.82); stroke-width:4; stroke-linecap:round; }
 
-/* IMPORTANT: overlay uses .hidden as display none.
-   For hangman parts, keep them in layout but invisible. */
+/* hangman parts */
 .part.hidden{ opacity:0; }
 
 .word{
@@ -201,7 +200,6 @@ input{
 .overlaySecret{ margin-top:12px; font-size:18px; font-weight:850; }
 .overlayMini{ margin-top:10px; color:var(--muted); font-size:13px; }
 
-/* shared hidden (modal/overlay) */
 .hidden{ display:none; }
 
 @media (max-width: 900px){
@@ -212,4 +210,29 @@ input{
   .board{ grid-template-columns:1fr; }
   .word{ font-size:28px; letter-spacing:6px; }
   .kbd{ grid-template-columns: repeat(7, minmax(0, 1fr)); }
+}
+
+/* 🐱 tiny but visible cat (EASTER EGG) */
+.catEgg{
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.25);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size: 18px;
+  line-height: 1;
+  opacity: .85;
+  z-index: 40;
+}
+
+.catEgg:hover{
+  opacity: 1;
+  transform: scale(1.05);
 }
