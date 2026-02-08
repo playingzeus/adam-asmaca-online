@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
   <!-- Name Modal -->
   <div class="modal" id="nameModal">
     <div class="modalCard">
@@ -18,19 +19,18 @@
     </div>
   </div>
 
-  <!-- Round Over Overlay -->
+  <!-- Overlay -->
   <div class="overlay hidden" id="overlay">
     <div class="overlayCard">
       <div class="overlayTitle" id="ovTitle">Tur bitti</div>
       <div class="overlaySub" id="ovSub">—</div>
       <div class="overlaySecret" id="ovSecret">Kelime: —</div>
-      <div class="overlayMini" id="ovMini">3 saniye sonra roller değişecek…</div>
+      <div class="overlayMini" id="ovMini">—</div>
     </div>
   </div>
 
   <header class="top">
     <div class="brand">Adam Asmaca</div>
-
     <div class="room">
       <span>Oda</span>
       <code id="roomId">—</code>
@@ -42,17 +42,16 @@
   <main class="wrap">
     <section class="card">
       <div class="row">
-        <div class="status" id="status">Bağlanıyor…</div>
+        <div class="status" id="status">—</div>
         <div class="pill" id="role">—</div>
       </div>
 
       <div class="layout">
-        <!-- Left -->
         <div>
           <div class="names" id="namesLine">—</div>
 
           <div class="board">
-            <svg viewBox="0 0 260 220" class="svg" aria-label="adam asma">
+            <svg viewBox="0 0 260 220" class="svg">
               <line x1="20" y1="200" x2="160" y2="200" class="line"/>
               <line x1="60" y1="200" x2="60" y2="20" class="line"/>
               <line x1="58" y1="20" x2="160" y2="20" class="line"/>
@@ -71,28 +70,27 @@
             <div class="meta">
               <div>Yanlış: <b id="wrong">0</b>/6</div>
               <div>Denenen: <b id="guessed">—</b></div>
-              <div class="last" id="last">Son tahmin: —</div>
+              <div id="last">Son tahmin: —</div>
             </div>
           </div>
 
           <div class="setbox" id="setBox">
             <div class="setTitle">Kelimeyi Yaz (sadece sen göreceksin)</div>
             <div class="setRow">
-              <input id="secretInput" placeholder="Kelime" autocomplete="off" />
-              <button id="setSecretBtn" disabled>Başlat</button>
+              <input id="secretInput" placeholder="Kelime" />
+              <button id="setSecretBtn">Başlat</button>
             </div>
-
-            <!-- ✅ Host only (shown by JS) -->
-            <button id="revealSecretBtn" class="ghostBtn" style="display:none;">👁 Kelimeyi Göster</button>
+            <button id="revealSecretBtn" class="ghostBtn" style="display:none;">
+              👁 Kelimeyi Göster
+            </button>
           </div>
 
           <div class="kbd" id="keyboard"></div>
         </div>
 
-        <!-- Right: scoreboard -->
         <aside class="score">
           <div class="scoreTitle">Skor</div>
-          <div class="scoreMini" id="scoreMeta">Set: 1 | İlk 5 puan seti alır</div>
+          <div class="scoreMini" id="scoreMeta">—</div>
 
           <div class="playerCard">
             <div class="pTop">
@@ -100,7 +98,7 @@
               <div class="stars" id="p1Stars">⭐ x0</div>
             </div>
             <div class="pBottom">
-              <div class="pLabel">Puan</div>
+              <div>Puan</div>
               <div class="pPoints" id="p1Points">0</div>
             </div>
           </div>
@@ -111,18 +109,17 @@
               <div class="stars" id="p2Stars">⭐ x0</div>
             </div>
             <div class="pBottom">
-              <div class="pLabel">Puan</div>
+              <div>Puan</div>
               <div class="pPoints" id="p2Points">0</div>
             </div>
-          </div>
-
-          <div class="scoreHint">
-            <b>Best of 3:</b> 2 set alan maçı kazanır ve skor sıfırlanır.
           </div>
         </aside>
       </div>
     </section>
   </main>
+
+  <!-- 🐱 EASTER EGG – BURASI EKSİKTİ -->
+  <button id="catEgg" class="catEgg" title="">🐱</button>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
