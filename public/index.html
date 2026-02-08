@@ -24,7 +24,7 @@
       <div class="overlayTitle" id="ovTitle">Tur bitti</div>
       <div class="overlaySub" id="ovSub">—</div>
       <div class="overlaySecret" id="ovSecret">Kelime: —</div>
-      <div class="overlayMini">3 saniye sonra roller değişecek…</div>
+      <div class="overlayMini" id="ovMini">3 saniye sonra roller değişecek…</div>
     </div>
   </div>
 
@@ -46,41 +46,78 @@
         <div class="pill" id="role">—</div>
       </div>
 
-      <div class="names" id="namesLine">—</div>
+      <div class="layout">
+        <!-- Left: board -->
+        <div>
+          <div class="names" id="namesLine">—</div>
 
-      <div class="board">
-        <svg viewBox="0 0 260 220" class="svg" aria-label="adam asma">
-          <line x1="20" y1="200" x2="160" y2="200" class="line"/>
-          <line x1="60" y1="200" x2="60" y2="20" class="line"/>
-          <line x1="58" y1="20" x2="160" y2="20" class="line"/>
-          <line x1="160" y1="20" x2="160" y2="45" class="line"/>
+          <div class="board">
+            <svg viewBox="0 0 260 220" class="svg" aria-label="adam asma">
+              <line x1="20" y1="200" x2="160" y2="200" class="line"/>
+              <line x1="60" y1="200" x2="60" y2="20" class="line"/>
+              <line x1="58" y1="20" x2="160" y2="20" class="line"/>
+              <line x1="160" y1="20" x2="160" y2="45" class="line"/>
 
-          <circle id="p-head" cx="160" cy="65" r="18" class="line part hidden"/>
-          <line id="p-body" x1="160" y1="83" x2="160" y2="125" class="line part hidden"/>
-          <line id="p-armL" x1="160" y1="95" x2="140" y2="112" class="line part hidden"/>
-          <line id="p-armR" x1="160" y1="95" x2="180" y2="112" class="line part hidden"/>
-          <line id="p-legL" x1="160" y1="125" x2="145" y2="155" class="line part hidden"/>
-          <line id="p-legR" x1="160" y1="125" x2="175" y2="155" class="line part hidden"/>
-        </svg>
+              <circle id="p-head" cx="160" cy="65" r="18" class="line part hidden"/>
+              <line id="p-body" x1="160" y1="83" x2="160" y2="125" class="line part hidden"/>
+              <line id="p-armL" x1="160" y1="95" x2="140" y2="112" class="line part hidden"/>
+              <line id="p-armR" x1="160" y1="95" x2="180" y2="112" class="line part hidden"/>
+              <line id="p-legL" x1="160" y1="125" x2="145" y2="155" class="line part hidden"/>
+              <line id="p-legR" x1="160" y1="125" x2="175" y2="155" class="line part hidden"/>
+            </svg>
 
-        <div class="word" id="word">—</div>
+            <div class="word" id="word">—</div>
 
-        <div class="meta">
-          <div>Yanlış: <b id="wrong">0</b>/6</div>
-          <div>Denenen: <b id="guessed">—</b></div>
-          <div class="last" id="last">Son tahmin: —</div>
+            <div class="meta">
+              <div>Yanlış: <b id="wrong">0</b>/6</div>
+              <div>Denenen: <b id="guessed">—</b></div>
+              <div class="last" id="last">Son tahmin: —</div>
+            </div>
+          </div>
+
+          <div class="setbox" id="setBox">
+            <div class="setTitle">Kelimeyi Yaz (sadece sen göreceksin)</div>
+            <div class="setRow">
+              <input id="secretInput" placeholder="Kelime" autocomplete="off" />
+              <button id="setSecretBtn" disabled>Başlat</button>
+            </div>
+          </div>
+
+          <div class="kbd" id="keyboard"></div>
         </div>
-      </div>
 
-      <div class="setbox" id="setBox">
-        <div class="setTitle">Kelimeyi Yaz (sadece sen göreceksin)</div>
-        <div class="setRow">
-          <input id="secretInput" placeholder="Kelime" autocomplete="off" />
-          <button id="setSecretBtn" disabled>Başlat</button>
-        </div>
-      </div>
+        <!-- Right: scoreboard -->
+        <aside class="score">
+          <div class="scoreTitle">Skor</div>
+          <div class="scoreMini" id="scoreMeta">Set: 1 | İlk 5 puan seti alır</div>
 
-      <div class="kbd" id="keyboard"></div>
+          <div class="playerCard" id="p1Card">
+            <div class="pTop">
+              <div class="pName" id="p1Name">—</div>
+              <div class="stars" id="p1Stars">⭐ x0</div>
+            </div>
+            <div class="pBottom">
+              <div class="pLabel">Puan</div>
+              <div class="pPoints" id="p1Points">0</div>
+            </div>
+          </div>
+
+          <div class="playerCard" id="p2Card">
+            <div class="pTop">
+              <div class="pName" id="p2Name">—</div>
+              <div class="stars" id="p2Stars">⭐ x0</div>
+            </div>
+            <div class="pBottom">
+              <div class="pLabel">Puan</div>
+              <div class="pPoints" id="p2Points">0</div>
+            </div>
+          </div>
+
+          <div class="scoreHint">
+            <b>Best of 3:</b> 2 set alan maçı kazanır ve skor sıfırlanır.
+          </div>
+        </aside>
+      </div>
     </section>
   </main>
 
