@@ -26,7 +26,7 @@ function maskSecret(secretRaw, guessedSet) {
   return chars.map((ch) => {
     const lower = ch.toLocaleLowerCase("tr-TR");
     const isLetter = /[a-zçğıöşü]/i.test(ch);
-    if (!isLetter) return ch; // boşluk, tire, noktalama açık kalsın
+    if (!isLetter) return ch;
     if (guessedSet.has(lower)) return ch;
     return "_";
   });
@@ -35,17 +35,17 @@ function maskSecret(secretRaw, guessedSet) {
 function ensureRoom(roomId) {
   if (!rooms.has(roomId)) {
     rooms.set(roomId, {
-      hostId: null,         // kelimeyi yazan
-      guestId: null,        // tahmin eden
-      names: new Map(),     // socketId -> name
-      phase: "waiting",     // waiting | playing
+      hostId: null,
+      guestId: null,
+      names: new Map(),
+      phase: "waiting",
       secretRaw: "",
       secretNorm: "",
       guessed: new Set(),
       wrong: 0,
-      maxWrong: 6,          // kafa, gövde, 2 kol, 2 bacak
-      lastGuess: null,      // { by, letter, hit }
-      roundOver: null,      // { winnerId, loserId, winnerName, loserName, secret, wonByGuesser }
+      maxWrong: 6,
+      lastGuess: null,
+      roundOver: null,
       swapTimer: null,
     });
   }
@@ -74,7 +74,6 @@ function publicState(roomId, r) {
     guessed: Array.from(r.guessed),
     revealed,
     lastGuess: r.lastGuess,
-    // roundOver server'dan ayrı event olarak gidiyor, ama state'de de dursun
     roundOver: r.roundOver,
   };
 }
@@ -96,12 +95,9 @@ io.on("connection", (socket) => {
     if (!roomId) return;
 
     const r = ensureRoom(roomId);
-
-    // isim kaydet
     const safeName = String(name || "").trim().slice(0, 20) || "Oyuncu";
     r.names.set(socket.id, safeName);
 
-    // role ata
     if (!r.hostId) r.hostId = socket.id;
     else if (!r.guestId && socket.id !== r.hostId) r.guestId = socket.id;
     else {
@@ -111,7 +107,6 @@ io.on("connection", (socket) => {
 
     socket.join(roomId);
 
-    // secret varsa ve iki kişi varsa oynat
     if (r.hostId && r.guestId && r.secretNorm) r.phase = "playing";
     else r.phase = "waiting";
 
@@ -124,7 +119,6 @@ io.on("connection", (socket) => {
     if (socket.id !== r.hostId) return;
     if (!secret || !secret.trim()) return;
 
-    // önceki timer varsa temizle
     if (r.swapTimer) {
       clearTimeout(r.swapTimer);
       r.swapTimer = null;
@@ -146,7 +140,7 @@ io.on("connection", (socket) => {
     const r = rooms.get(roomId);
     if (!r) return;
     if (r.phase !== "playing") return;
-    if (socket.id !== r.guestId) return; // sadece guest tahmin eder
+    if (socket.id !== r.guestId) return;
 
     let l = String(letter || "").trim().toLocaleLowerCase("tr-TR");
     if (l.length !== 1) return;
@@ -159,8 +153,8 @@ io.on("connection", (socket) => {
     r.lastGuess = { by: socket.id, letter: l, hit };
 
     const revealed = maskSecret(r.secretRaw, r.guessed);
-    const won = !revealed.includes("_");            // tahmin eden kazandı
-    const lost = r.wrong >= r.maxWrong;             // tahmin eden kaybetti
+    const won = !revealed.includes("_");
+    const lost = r.wrong >= r.maxWrong;
 
     if (won || lost) {
       const winnerId = won ? r.guestId : r.hostId;
@@ -175,38 +169,33 @@ io.on("connection", (socket) => {
         wonByGuesser: won,
       };
 
-      // Tur bitti ekranını herkes görsün (kelime de burada gösteriliyor)
       io.to(roomId).emit("roundOver", r.roundOver);
 
-      // 2 saniye sonra roller değişsin ve yeni tur beklesin
       if (r.swapTimer) clearTimeout(r.swapTimer);
+
+      // ✅ 3 saniye bekle, sonra swap
       r.swapTimer = setTimeout(() => {
-        // oda hâlâ var mı?
         const rr = rooms.get(roomId);
         if (!rr) return;
 
-        // iki kişi varsa swap
         if (rr.hostId && rr.guestId) {
           const oldHost = rr.hostId;
           rr.hostId = rr.guestId;
           rr.guestId = oldHost;
         }
 
-        // yeni tur reset (kelime yeni host tarafından girilecek)
         rr.secretRaw = "";
         rr.secretNorm = "";
         rr.guessed = new Set();
         rr.wrong = 0;
         rr.lastGuess = null;
         rr.phase = "waiting";
-        // roundOver bilgisi dursun (ekranda gösterildi zaten), ama state'te kalsın sorun değil
 
         rr.swapTimer = null;
 
         io.to(roomId).emit("state", publicState(roomId, rr));
-      }, 2000);
+      }, 3000);
 
-      // state'i de hemen güncelleyelim (klavye kilitlensin vs)
       io.to(roomId).emit("state", publicState(roomId, r));
       return;
     }
@@ -228,7 +217,6 @@ io.on("connection", (socket) => {
           r.swapTimer = null;
         }
 
-        // biri gidince oyunu resetle (basit)
         r.secretRaw = "";
         r.secretNorm = "";
         r.guessed = new Set();
