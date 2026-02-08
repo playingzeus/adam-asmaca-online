@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Adam Asmaca Online</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <h1>Adam Asmaca (Online)</h1>
+    <div class="roomline">
+      <span>Oda:</span> <code id="roomId">—</code>
+      <button id="copyLink" disabled>Kopyala</button>
+      <button id="newRoom">Yeni Oda</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Oyun</h2>
+
+      <div class="status" id="status">Bağlanıyor…</div>
+
+      <div class="hint">
+        <span class="label">İpucu:</span>
+        <span id="hintText">—</span>
+      </div>
+
+      <div class="reveal" id="reveal">—</div>
+
+      <div class="meter">
+        <span>Hata:</span>
+        <progress id="wrongBar" value="0" max="7"></progress>
+        <span id="wrongText">0/7</span>
+      </div>
+
+      <div class="turn" id="turn">—</div>
+
+      <div class="actions">
+        <input id="guessInput" maxlength="1" placeholder="Harf" />
+        <button id="guessBtn" disabled>Tahmin</button>
+        <button id="rematchBtn" disabled>Rövanş</button>
+      </div>
+
+      <div class="guessed">
+        <span class="label">Tahminler:</span>
+        <span id="guessedList">—</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Kurulum (Sadece Oda Sahibi)</h2>
+      <p class="muted">Kelimeyi sadece oda sahibi belirler. Karşı taraf görmez.</p>
+
+      <label class="row">
+        <span>Kelime / Cümle</span>
+        <input id="secretInput" placeholder="örn: Kırmızı Balık" />
+      </label>
+
+      <label class="row">
+        <span>İpucu</span>
+        <input id="hintInput" placeholder="örn: Çocuk şarkısı" />
+      </label>
+
+      <label class="row">
+        <span>Max hata</span>
+        <input id="maxWrongInput" type="number" min="3" max="12" value="7" />
+      </label>
+
+      <button id="setSecretBtn" disabled>Oyunu Başlat</button>
+    </section>
+
+    <section class="card chat">
+      <h2>Chat</h2>
+      <div id="chatBox" class="chatbox"></div>
+      <div class="typing" id="typing"> </div>
+      <div class="chatrow">
+        <input id="chatInput" placeholder="Mesaj…" />
+        <button id="sendChat">Gönder</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

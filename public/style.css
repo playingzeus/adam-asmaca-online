@@ -1,0 +1,32 @@
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+body { margin: 0; background: #0b1020; color: #e8ecff; }
+.top { padding: 16px 18px; display:flex; justify-content:space-between; align-items:center; gap:12px; border-bottom: 1px solid rgba(255,255,255,.08); }
+h1 { margin: 0; font-size: 18px; }
+.roomline { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+code { background: rgba(255,255,255,.08); padding: 4px 8px; border-radius: 8px; }
+button { border: 0; padding: 10px 12px; border-radius: 10px; cursor: pointer; background: #3b6cff; color: white; }
+button:disabled { opacity: .5; cursor:not-allowed; }
+input { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.06); color: #e8ecff; outline: none; }
+.grid { display:grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 14px; padding: 14px; }
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); border-radius: 16px; padding: 14px; min-height: 220px; }
+h2 { margin: 0 0 10px; font-size: 16px; }
+.status { padding: 10px 12px; background: rgba(0,0,0,.25); border-radius: 12px; }
+.muted { opacity:.8; margin-top: 0; }
+.hint, .guessed, .meter, .turn { margin-top: 10px; display:flex; gap: 8px; align-items:center; flex-wrap:wrap; }
+.label { opacity:.8; }
+.reveal { margin-top: 14px; font-size: 24px; letter-spacing: 4px; padding: 12px; border-radius: 12px; background: rgba(0,0,0,.22); min-height: 34px; }
+.actions { margin-top: 12px; display:flex; gap:10px; align-items:center; }
+.row { display:grid; grid-template-columns: 140px 1fr; gap: 10px; align-items:center; margin: 10px 0; }
+.chatbox { height: 240px; overflow:auto; padding: 10px; background: rgba(0,0,0,.22); border-radius: 12px; border: 1px solid rgba(255,255,255,.08); }
+.chatrow { display:flex; gap:10px; margin-top: 10px; }
+.chatrow input { flex: 1; }
+.msg { margin: 0 0 8px; }
+.sys { opacity:.85; }
+.me { color: #7ee787; }
+.them { color: #a5d6ff; }
+.typing { height: 18px; opacity: .8; margin-top: 6px; }
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; }
+}
