@@ -8,76 +8,63 @@
 </head>
 <body>
   <header class="top">
-    <h1>Adam Asmaca (Online)</h1>
-    <div class="roomline">
-      <span>Oda:</span> <code id="roomId">—</code>
-      <button id="copyLink" disabled>Kopyala</button>
+    <div class="brand">Adam Asmaca</div>
+
+    <div class="room">
+      <span>Oda</span>
+      <code id="roomId">—</code>
       <button id="newRoom">Yeni Oda</button>
+      <button id="copyLink" disabled>Linki Kopyala</button>
     </div>
   </header>
 
-  <main class="grid">
+  <main class="wrap">
     <section class="card">
-      <h2>Oyun</h2>
-
-      <div class="status" id="status">Bağlanıyor…</div>
-
-      <div class="hint">
-        <span class="label">İpucu:</span>
-        <span id="hintText">—</span>
+      <div class="row">
+        <div class="status" id="status">Bağlanıyor…</div>
+        <div class="pill" id="role">—</div>
       </div>
 
-      <div class="reveal" id="reveal">—</div>
+      <div class="board">
+        <!-- Hangman SVG -->
+        <svg viewBox="0 0 260 220" class="svg" aria-label="adam asma">
+          <!-- scaffold -->
+          <line x1="20" y1="200" x2="160" y2="200" class="line"/>
+          <line x1="60" y1="200" x2="60" y2="20" class="line"/>
+          <line x1="58" y1="20" x2="160" y2="20" class="line"/>
+          <line x1="160" y1="20" x2="160" y2="45" class="line"/>
 
-      <div class="meter">
-        <span>Hata:</span>
-        <progress id="wrongBar" value="0" max="7"></progress>
-        <span id="wrongText">0/7</span>
+          <!-- body parts (toggle by JS) -->
+          <circle id="p-head" cx="160" cy="65" r="18" class="line part hidden"/>
+          <line id="p-body" x1="160" y1="83" x2="160" y2="125" class="line part hidden"/>
+          <line id="p-armL" x1="160" y1="95" x2="140" y2="112" class="line part hidden"/>
+          <line id="p-armR" x1="160" y1="95" x2="180" y2="112" class="line part hidden"/>
+          <line id="p-legL" x1="160" y1="125" x2="145" y2="155" class="line part hidden"/>
+          <line id="p-legR" x1="160" y1="125" x2="175" y2="155" class="line part hidden"/>
+        </svg>
+
+        <div class="word" id="word">—</div>
+
+        <div class="meta">
+          <div>Yanlış: <b id="wrong">0</b>/6</div>
+          <div>Denenen: <b id="guessed">—</b></div>
+          <div class="last" id="last">Son tahmin: —</div>
+        </div>
       </div>
 
-      <div class="turn" id="turn">—</div>
-
-      <div class="actions">
-        <input id="guessInput" maxlength="1" placeholder="Harf" />
-        <button id="guessBtn" disabled>Tahmin</button>
-        <button id="rematchBtn" disabled>Rövanş</button>
+      <div class="setbox" id="setBox">
+        <div class="setTitle">Kelimeyi Yaz (sadece sen göreceksin)</div>
+        <div class="setRow">
+          <input id="secretInput" placeholder="örn: Kırmızı Balık" autocomplete="off" />
+          <button id="setSecretBtn" disabled>Başlat</button>
+        </div>
+        <div class="mini">Not: Karşı taraf sadece harf deneyecek. Sen denenen harfleri burada göreceksin.</div>
       </div>
 
-      <div class="guessed">
-        <span class="label">Tahminler:</span>
-        <span id="guessedList">—</span>
-      </div>
-    </section>
+      <div class="kbd" id="keyboard"></div>
 
-    <section class="card">
-      <h2>Kurulum (Sadece Oda Sahibi)</h2>
-      <p class="muted">Kelimeyi sadece oda sahibi belirler. Karşı taraf görmez.</p>
-
-      <label class="row">
-        <span>Kelime / Cümle</span>
-        <input id="secretInput" placeholder="örn: Kırmızı Balık" />
-      </label>
-
-      <label class="row">
-        <span>İpucu</span>
-        <input id="hintInput" placeholder="örn: Çocuk şarkısı" />
-      </label>
-
-      <label class="row">
-        <span>Max hata</span>
-        <input id="maxWrongInput" type="number" min="3" max="12" value="7" />
-      </label>
-
-      <button id="setSecretBtn" disabled>Oyunu Başlat</button>
-    </section>
-
-    <section class="card chat">
-      <h2>Chat</h2>
-      <div id="chatBox" class="chatbox"></div>
-      <div class="typing" id="typing"> </div>
-      <div class="chatrow">
-        <input id="chatInput" placeholder="Mesaj…" />
-        <button id="sendChat">Gönder</button>
+      <div class="footerRow">
+        <button id="newGameBtn" disabled>Yeni Oyun</button>
       </div>
     </section>
   </main>
