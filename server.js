@@ -6,11 +6,31 @@ const { nanoid } = require("nanoid");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  transports: ["websocket", "polling"], // Render'da daha stabil
+});
 
 app.use(express.static(path.join(__dirname, "public")));
 
+// room state (memory)
 const rooms = new Map();
+
+function ensureRoom(roomId) {
+  if (!rooms.has(roomId)) {
+    rooms.set(roomId, {
+      hostId: null,      // kelimeyi giren
+      guestId: null,     // tahmin eden
+      phase: "waiting",  // waiting | playing | over
+      secretRaw: "",
+      secretNorm: "",
+      guessed: new Set(),
+      wrong: 0,
+      maxWrong: 6,       // klasik 6 parça (kafa/gövde/2kol/2bacak)
+      lastGuess: null,   // { by, letter, hit }
+    });
+  }
+  return rooms.get(roomId);
+}
 
 function normalizeTR(s) {
   return s
@@ -24,47 +44,29 @@ function maskSecret(secretRaw, guessedSet) {
   return chars.map((ch) => {
     const lower = ch.toLocaleLowerCase("tr-TR");
     const isLetter = /[a-zçğıöşü]/i.test(ch);
-    if (!isLetter) return ch;
+    if (!isLetter) return ch;          // boşluk, tire vs açılsın
     if (guessedSet.has(lower)) return ch;
     return "_";
   });
 }
 
-function roomPublicState(roomId, r) {
+function publicState(roomId, r) {
+  const revealed = r.secretRaw ? maskSecret(r.secretRaw, r.guessed) : [];
+  const won = revealed.length ? !revealed.includes("_") : false;
+
   return {
     roomId,
     phase: r.phase,
-    hint: r.hint || "",
-    revealed: r.revealed || [],
-    guessed: Array.from(r.guessed || []),
-    wrong: r.wrong ?? 0,
-    maxWrong: r.maxWrong ?? 7,
-    turn: r.turn || null,
     players: { host: !!r.hostId, guest: !!r.guestId },
-    winner: r.winner || null,
-    hostId: r.hostId || null,
-    guestId: r.guestId || null,
+    hostId: r.hostId,
+    guestId: r.guestId,
+    wrong: r.wrong,
+    maxWrong: r.maxWrong,
+    guessed: Array.from(r.guessed),
+    revealed,
+    lastGuess: r.lastGuess,
+    won,
   };
-}
-
-function ensureRoom(roomId) {
-  if (!rooms.has(roomId)) {
-    rooms.set(roomId, {
-      hostId: null,
-      guestId: null,
-      phase: "lobby",
-      secretRaw: "",
-      secretNorm: "",
-      hint: "",
-      revealed: [],
-      guessed: new Set(),
-      wrong: 0,
-      maxWrong: 7,
-      turn: null,
-      winner: null,
-    });
-  }
-  return rooms.get(roomId);
 }
 
 io.on("connection", (socket) => {
@@ -78,8 +80,7 @@ io.on("connection", (socket) => {
     if (!roomId) return;
     const r = ensureRoom(roomId);
 
-    if (socket.rooms.has(roomId)) return;
-
+    // role ata
     if (!r.hostId) r.hostId = socket.id;
     else if (!r.guestId && socket.id !== r.hostId) r.guestId = socket.id;
     else {
@@ -89,120 +90,91 @@ io.on("connection", (socket) => {
 
     socket.join(roomId);
 
-    if (r.hostId && !r.guestId) r.phase = "set";
-    if (r.hostId && r.guestId && r.secretNorm) {
-      r.phase = "playing";
-      if (!r.turn) r.turn = r.hostId;
-    }
+    // secret varsa ve iki kişi varsa oynat
+    if (r.hostId && r.guestId && r.secretNorm) r.phase = "playing";
 
-    io.to(roomId).emit("state", roomPublicState(roomId, r));
-    io.to(roomId).emit("systemMsg", { text: "Bir oyuncu bağlandı." });
+    io.to(roomId).emit("state", publicState(roomId, r));
   });
 
-  socket.on("setSecret", ({ roomId, secret, hint, maxWrong }) => {
+  socket.on("setSecret", ({ roomId, secret }) => {
     const r = rooms.get(roomId);
     if (!r) return;
-    if (socket.id !== r.hostId) return;
+    if (socket.id !== r.hostId) return;           // sadece host ayarlar
     if (!secret || !secret.trim()) return;
 
     r.secretRaw = secret.trim();
     r.secretNorm = normalizeTR(r.secretRaw);
-    r.hint = (hint || "").trim();
-    r.maxWrong = Number.isFinite(+maxWrong) ? Math.max(3, Math.min(12, +maxWrong)) : 7;
-
     r.guessed = new Set();
     r.wrong = 0;
-    r.winner = null;
-    r.revealed = maskSecret(r.secretRaw, r.guessed);
-    r.phase = r.guestId ? "playing" : "set";
-    r.turn = r.hostId;
+    r.lastGuess = null;
 
-    io.to(roomId).emit("state", roomPublicState(roomId, r));
-    io.to(roomId).emit("systemMsg", { text: "Kelime ayarlandı. Oyun başladı!" });
+    // iki kişi varsa başla, yoksa guest bekle
+    r.phase = (r.hostId && r.guestId) ? "playing" : "waiting";
+
+    io.to(roomId).emit("state", publicState(roomId, r));
   });
 
   socket.on("guess", ({ roomId, letter }) => {
     const r = rooms.get(roomId);
     if (!r) return;
     if (r.phase !== "playing") return;
-    if (socket.id !== r.turn) return;
+    if (socket.id !== r.guestId) return;          // sadece guest tahmin eder
 
-    if (!letter) return;
-    let l = String(letter).trim().toLocaleLowerCase("tr-TR");
-
+    let l = String(letter || "").trim().toLocaleLowerCase("tr-TR");
     if (l.length !== 1) return;
     if (!/[a-zçğıöşü]/.test(l)) return;
     if (r.guessed.has(l)) return;
 
     r.guessed.add(l);
-
     const hit = r.secretNorm.includes(l);
     if (!hit) r.wrong += 1;
 
-    r.revealed = maskSecret(r.secretRaw, r.guessed);
+    r.lastGuess = { by: socket.id, letter: l, hit };
 
-    const won = !r.revealed.includes("_");
+    const revealed = maskSecret(r.secretRaw, r.guessed);
+    const won = !revealed.includes("_");
     const lost = r.wrong >= r.maxWrong;
 
     if (won || lost) {
       r.phase = "over";
-      r.winner = won ? socket.id : (socket.id === r.hostId ? r.guestId : r.hostId);
-      io.to(roomId).emit("revealSecret", { secret: r.secretRaw });
-    } else {
-      r.turn = (socket.id === r.hostId ? r.guestId : r.hostId);
     }
 
-    io.to(roomId).emit("state", roomPublicState(roomId, r));
+    io.to(roomId).emit("state", publicState(roomId, r));
   });
 
-  socket.on("rematch", ({ roomId }) => {
+  socket.on("newGame", ({ roomId }) => {
     const r = rooms.get(roomId);
     if (!r) return;
     if (socket.id !== r.hostId) return;
 
-    r.phase = "set";
+    // yeni oyun: secret sıfırla, tekrar girilsin
     r.secretRaw = "";
     r.secretNorm = "";
-    r.hint = "";
     r.guessed = new Set();
     r.wrong = 0;
-    r.winner = null;
-    r.revealed = [];
-    r.turn = r.hostId;
+    r.lastGuess = null;
+    r.phase = "waiting";
 
-    io.to(roomId).emit("state", roomPublicState(roomId, r));
-    io.to(roomId).emit("systemMsg", { text: "Yeni oyun için kelime bekleniyor." });
-  });
-
-  socket.on("chat", ({ roomId, text }) => {
-    const t = (text || "").trim();
-    if (!t) return;
-    io.to(roomId).emit("chat", { from: socket.id, text: t });
-  });
-
-  socket.on("typing", ({ roomId, isTyping }) => {
-    socket.to(roomId).emit("typing", { from: socket.id, isTyping: !!isTyping });
+    io.to(roomId).emit("state", publicState(roomId, r));
   });
 
   socket.on("disconnect", () => {
     for (const [roomId, r] of rooms.entries()) {
       let changed = false;
+
       if (r.hostId === socket.id) { r.hostId = null; changed = true; }
       if (r.guestId === socket.id) { r.guestId = null; changed = true; }
 
       if (changed) {
-        r.phase = "lobby";
+        // biri gidince oyunu basitçe sıfırla
         r.secretRaw = "";
         r.secretNorm = "";
-        r.hint = "";
         r.guessed = new Set();
         r.wrong = 0;
-        r.winner = null;
-        r.revealed = [];
-        r.turn = null;
+        r.lastGuess = null;
+        r.phase = "waiting";
 
-        io.to(roomId).emit("state", roomPublicState(roomId, r));
-        io.to(roomId).emit("systemMsg", { text: "Bir oyuncu ayrıldı. Oyun sıfırlandı." });
+        io.to(roomId).emit("state", publicState(roomId, r));
 
         if (!r.hostId && !r.guestId) rooms.delete(roomId);
       }
@@ -211,4 +183,4 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`Server running on :${PORT}`));
