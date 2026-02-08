@@ -212,7 +212,7 @@ input{
   .kbd{ grid-template-columns: repeat(7, minmax(0, 1fr)); }
 }
 
-/* 🐱 tiny but visible cat (EASTER EGG) */
+/* 🐱 tiny but visible cat (fidget button) */
 .catEgg{
   position: fixed;
   right: 14px;
@@ -228,11 +228,18 @@ input{
   justify-content:center;
   font-size: 18px;
   line-height: 1;
-  opacity: .85;
+  opacity: .9;
   z-index: 40;
+
+  transform: rotate(0deg) scale(1);
+  transition: transform 220ms ease, opacity 160ms ease;
 }
 
 .catEgg:hover{
   opacity: 1;
-  transform: scale(1.05);
+}
+
+/* click anim state (JS ekliyor) */
+.catEgg.spin{
+  transform: rotate(360deg) scale(1.18);
 }
