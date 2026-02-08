@@ -43,6 +43,10 @@ const ovSub = el("ovSub");
 const ovSecret = el("ovSecret");
 const ovMini = el("ovMini");
 
+// cat
+const catBtn = el("catEgg");
+let catClicks = 0;
+
 // parts
 const parts = [
   el("p-head"),
@@ -140,11 +144,8 @@ function updateScoreboard(s) {
   const sc = s.scoring;
   if (!sc) return;
 
-  const n1 = s.names?.p1 || "—";
-  const n2 = s.names?.p2 || "—";
-
-  p1Name.textContent = n1;
-  p2Name.textContent = n2;
+  p1Name.textContent = s.names?.p1 || "—";
+  p2Name.textContent = s.names?.p2 || "—";
 
   p1Stars.textContent = `⭐ x${sc.sets.p1}`;
   p2Stars.textContent = `⭐ x${sc.sets.p2}`;
@@ -167,7 +168,6 @@ function updateUI(s) {
   const amHost = s.hostId === myId;
   const amGuest = s.guestId === myId;
 
-  // roles line
   if (s.names?.host || s.names?.guest) {
     const host = s.names.host ? `${s.names.host} (Kelime)` : "—";
     const guest = s.names.guest ? `${s.names.guest} (Tahmin)` : "—";
@@ -185,19 +185,16 @@ function updateUI(s) {
   else if (s.phase === "waiting") setStatus("Kelime bekleniyor…");
   else if (s.phase === "playing") setStatus("Oyun başladı.");
 
-  // host input
   setBox.style.display = amHost ? "block" : "none";
   setSecretBtn.disabled = !amHost || !secretInput.value.trim();
 
-  // ✅ show "Kelimeyi Göster" only for host while playing
-  if (amHost && s.phase === "playing") {
-    revealSecretBtn.style.display = "inline-block";
-  } else {
-    revealSecretBtn.style.display = "none";
-  }
+  if (amHost && s.phase === "playing") revealSecretBtn.style.display = "inline-block";
+  else revealSecretBtn.style.display = "none";
 
   renderParts(s.wrong || 0);
   wrongEl.textContent = String(s.wrong ?? 0);
+
+  // ✅ burada zaten guessed listesi gösteriliyor; catHint ile eklenen harf de buraya düşecek
   guessedEl.textContent = s.guessed && s.guessed.length ? s.guessed.join(", ") : "—";
 
   if (amHost && s.phase === "waiting" && (!s.revealed || s.revealed.length === 0)) {
@@ -206,6 +203,7 @@ function updateUI(s) {
     renderWord(s.revealed);
   }
 
+  // ✅ Son tahmin satırı sadece gerçek guess ile değişir (catHint lastGuess’i değiştirmiyor)
   if (s.lastGuess) {
     const who = (s.lastGuess.by === s.guestId) ? (s.names?.guest || "Tahmin eden") : "Biri";
     const L = s.lastGuess.letter.toLocaleUpperCase("tr-TR");
@@ -219,17 +217,14 @@ function updateUI(s) {
   renderKeyboard(keyboardDisabled, guessedSet, s.lastGuess);
 }
 
-// --- Socket events ---
+// ---- socket events ----
 socket.on("connect", () => {
   myId = socket.id;
 
   const saved = localStorage.getItem("hangman_name") || "";
   myName = saved.trim();
-  if (!myName) {
-    showNameModal();
-  } else {
-    hideNameModal();
-  }
+  if (!myName) showNameModal();
+  else hideNameModal();
 
   const room = getRoomFromUrl();
   if (room && myName) {
@@ -237,7 +232,7 @@ socket.on("connect", () => {
     socket.emit("joinRoom", { roomId: room, name: myName });
   } else if (!room) {
     setStatus("Yeni oda oluştur.");
-  } else if (room && !myName) {
+  } else {
     setStatus("İsim seç…");
   }
 });
@@ -271,31 +266,21 @@ socket.on("roundOver", (info) => {
   setTimeout(() => hideOverlay(), 3100);
 });
 
-// ✅ Host-only secret reveal response
 socket.on("secretReveal", ({ secret }) => {
   if (!state) return;
 
-  // show secret briefly
-  const prev = wordEl.textContent;
-
-  // clear previous timer
   if (tempRevealTimer) clearTimeout(tempRevealTimer);
-
   wordEl.textContent = secret;
 
   tempRevealTimer = setTimeout(() => {
-    // restore masked word
     renderWord(state.revealed);
     tempRevealTimer = null;
   }, 2000);
 });
 
-// --- UI events ---
+// ---- ui events ----
 newRoomBtn.addEventListener("click", () => {
-  if (!myName) {
-    showNameModal();
-    return;
-  }
+  if (!myName) { showNameModal(); return; }
   socket.emit("createRoom");
 });
 
@@ -316,16 +301,25 @@ setSecretBtn.addEventListener("click", () => {
   setSecretBtn.disabled = true;
 });
 
-// ✅ reveal button (host only)
 revealSecretBtn.addEventListener("click", () => {
   if (!currentRoom) return;
   socket.emit("requestSecret", { roomId: currentRoom });
 });
 
-// name modal
+// 🐱 11-click: 1 harf aç (sessiz)
+catBtn.addEventListener("click", () => {
+  if (!currentRoom) return;
+  catClicks += 1;
+  if (catClicks >= 11) {
+    catClicks = 0;
+    socket.emit("catHint", { roomId: currentRoom });
+  }
+});
+
 nameBtn.addEventListener("click", () => {
   const n = (nameInput.value || "").trim().slice(0, 20);
   if (!n) return;
+
   myName = n;
   localStorage.setItem("hangman_name", myName);
   hideNameModal();
