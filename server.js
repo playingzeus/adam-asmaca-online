@@ -6,20 +6,14 @@ const { nanoid } = require("nanoid");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  transports: ["websocket", "polling"],
-});
+const io = new Server(server, { transports: ["websocket", "polling"] });
 
 app.use(express.static(path.join(__dirname, "public")));
 
 const rooms = new Map();
 
-// ---- helpers ----
 function normalizeTR(s) {
-  return s
-    .trim()
-    .toLocaleLowerCase("tr-TR")
-    .replace(/\s+/g, " ");
+  return s.trim().toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
 }
 
 function maskSecret(secretRaw, guessedSet) {
@@ -28,27 +22,22 @@ function maskSecret(secretRaw, guessedSet) {
     const lower = ch.toLocaleLowerCase("tr-TR");
     const isLetter = /[a-zçğıöşü]/i.test(ch);
     if (!isLetter) return ch;
-    if (guessedSet.has(lower)) return ch;
-    return "_";
+    return guessedSet.has(lower) ? ch : "_";
   });
 }
 
 function ensureRoom(roomId) {
   if (!rooms.has(roomId)) {
     rooms.set(roomId, {
-      // fixed player slots (scores follow players, not host/guest)
       p1Id: null,
       p2Id: null,
 
-      // roles (swap every round)
-      hostId: null,  // word setter
-      guestId: null, // guesser
+      hostId: null,
+      guestId: null,
 
-      // names
-      names: new Map(), // socketId -> name
+      names: new Map(),
 
-      // game state
-      phase: "waiting", // waiting | playing
+      phase: "waiting",
       secretRaw: "",
       secretNorm: "",
       guessed: new Set(),
@@ -56,14 +45,12 @@ function ensureRoom(roomId) {
       maxWrong: 6,
       lastGuess: null,
 
-      // scoring
       pointsToWinSet: 5,
       setsToWinMatch: 2,
-      points: { p1: 0, p2: 0 }, // within current set
-      sets: { p1: 0, p2: 0 },   // sets won
-      currentSet: 1,            // 1..3
+      points: { p1: 0, p2: 0 },
+      sets: { p1: 0, p2: 0 },
+      currentSet: 1,
 
-      // timers
       nextTimer: null,
     });
   }
@@ -84,18 +71,15 @@ function playerSlot(r, id) {
 
 function publicState(roomId, r) {
   const revealed = r.secretRaw ? maskSecret(r.secretRaw, r.guessed) : [];
-
   return {
     roomId,
     phase: r.phase,
 
-    // ids
     hostId: r.hostId,
     guestId: r.guestId,
     p1Id: r.p1Id,
     p2Id: r.p2Id,
 
-    // names
     names: {
       host: r.hostId ? getName(r, r.hostId) : "",
       guest: r.guestId ? getName(r, r.guestId) : "",
@@ -103,14 +87,12 @@ function publicState(roomId, r) {
       p2: r.p2Id ? getName(r, r.p2Id) : "",
     },
 
-    // hangman (NEVER send secretRaw here)
     wrong: r.wrong,
     maxWrong: r.maxWrong,
     guessed: Array.from(r.guessed),
     revealed,
     lastGuess: r.lastGuess,
 
-    // scoring
     scoring: {
       pointsToWinSet: r.pointsToWinSet,
       setsToWinMatch: r.setsToWinMatch,
@@ -149,7 +131,95 @@ function resetMatch(r) {
   r.currentSet = 1;
 }
 
-// ---- socket ----
+function pickRandomUnrevealedLetter(r) {
+  const pool = [];
+  for (const ch of r.secretNorm) {
+    if (/[a-zçğıöşü]/.test(ch) && !r.guessed.has(ch)) pool.push(ch);
+  }
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function finishRound(roomId, r, guesserWon) {
+  const winnerId = guesserWon ? r.guestId : r.hostId;
+  const loserId = guesserWon ? r.hostId : r.guestId;
+
+  const winnerSlot = playerSlot(r, winnerId);
+  if (winnerSlot) r.points[winnerSlot] += 1;
+
+  let setWinnerSlot = null;
+  if (r.points.p1 >= r.pointsToWinSet) setWinnerSlot = "p1";
+  if (r.points.p2 >= r.pointsToWinSet) setWinnerSlot = "p2";
+
+  let setEnded = false;
+  let matchEnded = false;
+  let matchWinnerSlot = null;
+
+  if (setWinnerSlot) {
+    setEnded = true;
+    r.sets[setWinnerSlot] += 1;
+
+    r.points = { p1: 0, p2: 0 };
+    r.currentSet = Math.min(3, r.currentSet + 1);
+
+    if (r.sets[setWinnerSlot] >= r.setsToWinMatch) {
+      matchEnded = true;
+      matchWinnerSlot = setWinnerSlot;
+    }
+  }
+
+  const info = {
+    winnerId,
+    loserId,
+    winnerName: getName(r, winnerId),
+    loserName: getName(r, loserId),
+    secret: r.secretRaw,
+    guesserWon,
+
+    scoring: {
+      pointsToWinSet: r.pointsToWinSet,
+      setsToWinMatch: r.setsToWinMatch,
+      points: r.points,
+      sets: r.sets,
+      currentSet: r.currentSet,
+    },
+
+    setEnded,
+    matchEnded,
+    setWinnerName: setEnded
+      ? getName(r, setWinnerSlot === "p1" ? r.p1Id : r.p2Id)
+      : null,
+    matchWinnerName: matchEnded
+      ? getName(r, matchWinnerSlot === "p1" ? r.p1Id : r.p2Id)
+      : null,
+  };
+
+  io.to(roomId).emit("roundOver", info);
+
+  clearNextTimer(r);
+
+  if (r.hostId && r.guestId) {
+    const oldHost = r.hostId;
+    r.hostId = r.guestId;
+    r.guestId = oldHost;
+  }
+
+  resetRound(r);
+
+  const overlayMs = 3000;
+  r.nextTimer = setTimeout(() => {
+    const rr = rooms.get(roomId);
+    if (!rr) return;
+
+    if (info.matchEnded) resetMatch(rr);
+
+    rr.nextTimer = null;
+    io.to(roomId).emit("state", publicState(roomId, rr));
+  }, overlayMs);
+
+  io.to(roomId).emit("state", publicState(roomId, r));
+}
+
 io.on("connection", (socket) => {
   socket.on("createRoom", () => {
     const roomId = nanoid(8);
@@ -159,16 +229,14 @@ io.on("connection", (socket) => {
 
   socket.on("joinRoom", ({ roomId, name }) => {
     if (!roomId) return;
-
     const r = ensureRoom(roomId);
+
     const safeName = String(name || "").trim().slice(0, 20) || "Oyuncu";
     r.names.set(socket.id, safeName);
 
-    // assign player slots
     if (!r.p1Id) r.p1Id = socket.id;
     else if (!r.p2Id && socket.id !== r.p1Id) r.p2Id = socket.id;
 
-    // assign roles
     if (!r.hostId) r.hostId = socket.id;
     else if (!r.guestId && socket.id !== r.hostId) r.guestId = socket.id;
     else {
@@ -178,10 +246,7 @@ io.on("connection", (socket) => {
 
     socket.join(roomId);
 
-    // phase
-    if (r.hostId && r.guestId && r.secretNorm) r.phase = "playing";
-    else r.phase = "waiting";
-
+    r.phase = (r.hostId && r.guestId && r.secretNorm) ? "playing" : "waiting";
     io.to(roomId).emit("state", publicState(roomId, r));
   });
 
@@ -200,17 +265,40 @@ io.on("connection", (socket) => {
     r.lastGuess = null;
 
     r.phase = (r.hostId && r.guestId) ? "playing" : "waiting";
-
     io.to(roomId).emit("state", publicState(roomId, r));
   });
 
-  // ✅ Host forgot the word: send ONLY to host (never broadcast)
   socket.on("requestSecret", ({ roomId }) => {
     const r = rooms.get(roomId);
     if (!r) return;
     if (socket.id !== r.hostId) return;
     if (!r.secretRaw) return;
     socket.emit("secretReveal", { secret: r.secretRaw });
+  });
+
+  // 🐱 Sessiz hint: 1 harf açar -> guessed listesine girer
+  // lastGuess DEĞİŞMEZ (karşı taraf "son tahmin"de bir şey görmez)
+  socket.on("catHint", ({ roomId }) => {
+    const r = rooms.get(roomId);
+    if (!r) return;
+    if (r.phase !== "playing") return;
+    if (!r.secretNorm) return;
+
+    const letter = pickRandomUnrevealedLetter(r);
+    if (!letter) return;
+
+    r.guessed.add(letter);
+
+    const revealed = maskSecret(r.secretRaw, r.guessed);
+    const guesserWon = !revealed.includes("_");
+    const guesserLost = r.wrong >= r.maxWrong;
+
+    if (guesserWon || guesserLost) {
+      finishRound(roomId, r, guesserWon);
+      return;
+    }
+
+    io.to(roomId).emit("state", publicState(roomId, r));
   });
 
   socket.on("guess", ({ roomId, letter }) => {
@@ -233,100 +321,11 @@ io.on("connection", (socket) => {
     const guesserWon = !revealed.includes("_");
     const guesserLost = r.wrong >= r.maxWrong;
 
-    if (!(guesserWon || guesserLost)) {
-      io.to(roomId).emit("state", publicState(roomId, r));
+    if (guesserWon || guesserLost) {
+      finishRound(roomId, r, guesserWon);
       return;
     }
 
-    // round winner/loser
-    const winnerId = guesserWon ? r.guestId : r.hostId;
-    const loserId = guesserWon ? r.hostId : r.guestId;
-
-    // update points
-    const winnerSlot = playerSlot(r, winnerId);
-    if (winnerSlot) r.points[winnerSlot] += 1;
-
-    // set win?
-    let setWinnerSlot = null;
-    if (r.points.p1 >= r.pointsToWinSet) setWinnerSlot = "p1";
-    if (r.points.p2 >= r.pointsToWinSet) setWinnerSlot = "p2";
-
-    let setEnded = false;
-    let matchEnded = false;
-    let matchWinnerSlot = null;
-
-    if (setWinnerSlot) {
-      setEnded = true;
-      r.sets[setWinnerSlot] += 1;
-
-      // reset points for next set
-      r.points = { p1: 0, p2: 0 };
-      r.currentSet = Math.min(3, r.currentSet + 1);
-
-      if (r.sets[setWinnerSlot] >= r.setsToWinMatch) {
-        matchEnded = true;
-        matchWinnerSlot = setWinnerSlot;
-      }
-    }
-
-    const info = {
-      winnerId,
-      loserId,
-      winnerName: getName(r, winnerId),
-      loserName: getName(r, loserId),
-      secret: r.secretRaw,
-      guesserWon,
-
-      scoring: {
-        pointsToWinSet: r.pointsToWinSet,
-        setsToWinMatch: r.setsToWinMatch,
-        points: r.points,
-        sets: r.sets,
-        currentSet: r.currentSet,
-      },
-
-      setEnded,
-      matchEnded,
-      setWinnerName: setEnded
-        ? getName(r, setWinnerSlot === "p1" ? r.p1Id : r.p2Id)
-        : null,
-      matchWinnerName: matchEnded
-        ? getName(r, matchWinnerSlot === "p1" ? r.p1Id : r.p2Id)
-        : null,
-    };
-
-    // send overlay info (includes secret for both, by design at end of round)
-    io.to(roomId).emit("roundOver", info);
-
-    // prepare next round
-    clearNextTimer(r);
-
-    // swap roles
-    if (r.hostId && r.guestId) {
-      const oldHost = r.hostId;
-      r.hostId = r.guestId;
-      r.guestId = oldHost;
-    }
-
-    // reset round (word cleared)
-    resetRound(r);
-
-    // overlay duration
-    const overlayMs = 3000;
-
-    r.nextTimer = setTimeout(() => {
-      const rr = rooms.get(roomId);
-      if (!rr) return;
-
-      if (info.matchEnded) {
-        resetMatch(rr);
-      }
-
-      rr.nextTimer = null;
-      io.to(roomId).emit("state", publicState(roomId, rr));
-    }, overlayMs);
-
-    // push state now (locks keyboard, shows waiting)
     io.to(roomId).emit("state", publicState(roomId, r));
   });
 
@@ -336,17 +335,14 @@ io.on("connection", (socket) => {
 
       if (r.hostId === socket.id) { r.hostId = null; changed = true; }
       if (r.guestId === socket.id) { r.guestId = null; changed = true; }
-
       if (r.p1Id === socket.id) { r.p1Id = null; changed = true; }
       if (r.p2Id === socket.id) { r.p2Id = null; changed = true; }
-
       if (r.names.has(socket.id)) { r.names.delete(socket.id); changed = true; }
 
       if (changed) {
         clearNextTimer(r);
         resetRound(r);
         resetMatch(r);
-
         io.to(roomId).emit("state", publicState(roomId, r));
         cleanupRoomIfEmpty(roomId);
       }
