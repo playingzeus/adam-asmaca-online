@@ -21,6 +21,15 @@ const setSecretBtn = el("setSecretBtn");
 
 const keyboardEl = el("keyboard");
 
+// scoreboard
+const scoreMeta = el("scoreMeta");
+const p1Name = el("p1Name");
+const p2Name = el("p2Name");
+const p1Stars = el("p1Stars");
+const p2Stars = el("p2Stars");
+const p1Points = el("p1Points");
+const p2Points = el("p2Points");
+
 // name modal
 const nameModal = el("nameModal");
 const nameInput = el("nameInput");
@@ -31,6 +40,7 @@ const overlay = el("overlay");
 const ovTitle = el("ovTitle");
 const ovSub = el("ovSub");
 const ovSecret = el("ovSecret");
+const ovMini = el("ovMini");
 
 // parts
 const parts = [
@@ -72,10 +82,11 @@ function hideNameModal() {
   nameModal.style.display = "none";
 }
 
-function showOverlay(title, sub, secret) {
+function showOverlay(title, sub, secret, mini) {
   ovTitle.textContent = title;
   ovSub.textContent = sub;
   ovSecret.textContent = `Kelime: “${secret}”`;
+  ovMini.textContent = mini || "3 saniye sonra roller değişecek…";
   overlay.classList.remove("hidden");
 }
 function hideOverlay() {
@@ -122,6 +133,25 @@ function renderWord(revealedArr) {
   wordEl.textContent = revealedArr.join(" ");
 }
 
+function updateScoreboard(s) {
+  const sc = s.scoring;
+  if (!sc) return;
+
+  const n1 = s.names?.p1 || "—";
+  const n2 = s.names?.p2 || "—";
+
+  p1Name.textContent = n1;
+  p2Name.textContent = n2;
+
+  p1Stars.textContent = `⭐ x${sc.sets.p1}`;
+  p2Stars.textContent = `⭐ x${sc.sets.p2}`;
+
+  p1Points.textContent = String(sc.points.p1);
+  p2Points.textContent = String(sc.points.p2);
+
+  scoreMeta.textContent = `Set: ${sc.currentSet} | İlk ${sc.pointsToWinSet} puan seti alır`;
+}
+
 function updateUI(s) {
   state = s;
   myId = socket.id;
@@ -129,10 +159,12 @@ function updateUI(s) {
   roomIdEl.textContent = s.roomId || "—";
   copyLinkBtn.disabled = !s.roomId;
 
+  updateScoreboard(s);
+
   const amHost = s.hostId === myId;
   const amGuest = s.guestId === myId;
 
-  // isim satırı
+  // names line (roles)
   if (s.names?.host || s.names?.guest) {
     const host = s.names.host ? `${s.names.host} (Kelime)` : "—";
     const guest = s.names.guest ? `${s.names.guest} (Tahmin)` : "—";
@@ -141,34 +173,28 @@ function updateUI(s) {
     namesLine.textContent = "—";
   }
 
-  // role pill
   if (amHost) setRole("Sen: Kelime yazan");
   else if (amGuest) setRole("Sen: Tahmin eden");
   else setRole("—");
 
-  // status
   if (!s.hostId) setStatus("Oda boş. Yeni oda aç.");
   else if (s.hostId && !s.guestId) setStatus("Rakip bekleniyor… Linki gönder.");
   else if (s.phase === "waiting") setStatus("Kelime bekleniyor…");
   else if (s.phase === "playing") setStatus("Oyun başladı.");
 
-  // host için kelime kutusu
   setBox.style.display = amHost ? "block" : "none";
   setSecretBtn.disabled = !amHost || !secretInput.value.trim();
 
-  // parts + meta
   renderParts(s.wrong || 0);
   wrongEl.textContent = String(s.wrong ?? 0);
   guessedEl.textContent = s.guessed && s.guessed.length ? s.guessed.join(", ") : "—";
 
-  // word
   if (amHost && s.phase === "waiting" && (!s.revealed || s.revealed.length === 0)) {
     wordEl.textContent = "Kelimeyi girip başlat.";
   } else {
     renderWord(s.revealed);
   }
 
-  // last guess
   if (s.lastGuess) {
     const who = (s.lastGuess.by === s.guestId) ? (s.names?.guest || "Tahmin eden") : "Biri";
     const L = s.lastGuess.letter.toLocaleUpperCase("tr-TR");
@@ -177,7 +203,6 @@ function updateUI(s) {
     lastEl.textContent = "Son tahmin: —";
   }
 
-  // keyboard sadece guest oynarken aktif
   const guessedSet = new Set((s.guessed || []).map(x => x.toLocaleLowerCase("tr-TR")));
   const keyboardDisabled = !(amGuest && s.phase === "playing") || !s.hostId || !s.guestId;
   renderKeyboard(keyboardDisabled, guessedSet, s.lastGuess);
@@ -188,7 +213,6 @@ function updateUI(s) {
 socket.on("connect", () => {
   myId = socket.id;
 
-  // isim yoksa modal aç
   const saved = localStorage.getItem("hangman_name") || "";
   myName = saved.trim();
   if (!myName) {
@@ -222,13 +246,23 @@ socket.on("state", (s) => {
 });
 
 socket.on("roundOver", (info) => {
-  // info: {winnerName, loserName, secret, wonByGuesser}
+  // Round result
   const title = `${info.winnerName} kazandı ✅`;
   const sub = `${info.loserName} kaybetti ❌`;
-  showOverlay(title, sub, info.secret);
+  let mini = "3 saniye sonra roller değişecek…";
 
-  // overlay 2.1s sonra kapansın (server 2s sonra swap ediyor)
-  setTimeout(() => hideOverlay(), 2100);
+  // Set / Match messages
+  if (info.setEnded && !info.matchEnded) {
+    mini = `Set ${Math.max(1, (info.scoring.currentSet - 1))} ${info.setWinnerName}’e gitti. Yeni sete geçiliyor…`;
+  }
+  if (info.matchEnded) {
+    mini = `MAÇI ${info.matchWinnerName} kazandı 🏆 Skorlar sıfırlanıyor…`;
+  }
+
+  showOverlay(title, sub, info.secret, mini);
+
+  // Overlay 3.1s sonra kapansın (server 3s sonra state gönderiyor)
+  setTimeout(() => hideOverlay(), 3100);
 });
 
 // --- UI events ---
