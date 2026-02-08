@@ -47,7 +47,7 @@
       </div>
 
       <div class="layout">
-        <!-- Left: board -->
+        <!-- Left -->
         <div>
           <div class="names" id="namesLine">—</div>
 
@@ -81,6 +81,9 @@
               <input id="secretInput" placeholder="Kelime" autocomplete="off" />
               <button id="setSecretBtn" disabled>Başlat</button>
             </div>
+
+            <!-- ✅ Host only (shown by JS) -->
+            <button id="revealSecretBtn" class="ghostBtn" style="display:none;">👁 Kelimeyi Göster</button>
           </div>
 
           <div class="kbd" id="keyboard"></div>
@@ -91,7 +94,7 @@
           <div class="scoreTitle">Skor</div>
           <div class="scoreMini" id="scoreMeta">Set: 1 | İlk 5 puan seti alır</div>
 
-          <div class="playerCard" id="p1Card">
+          <div class="playerCard">
             <div class="pTop">
               <div class="pName" id="p1Name">—</div>
               <div class="stars" id="p1Stars">⭐ x0</div>
@@ -102,7 +105,7 @@
             </div>
           </div>
 
-          <div class="playerCard" id="p2Card">
+          <div class="playerCard">
             <div class="pTop">
               <div class="pName" id="p2Name">—</div>
               <div class="stars" id="p2Stars">⭐ x0</div>
